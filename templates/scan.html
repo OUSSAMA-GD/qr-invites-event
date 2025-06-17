@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scanner QR Code - Invités</title>
+    <script src="https://unpkg.com/html5-qrcode"></script>
+    <style>
+    body {
+        font-family: Arial, sans-serif;
+        margin: 0;
+        padding: 20px;
+        background-color: #f5f5f5;
+        min-height: 100vh;
+    }
+
+    .container {
+        max-width: 800px;
+        margin: 0 auto;
+        background: white;
+        border-radius: 10px;
+        padding: 30px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+
+    .header {
+        text-align: center;
+        margin-bottom: 30px;
+    }
+
+    .scanner-container {
+        background: #f8f9fa;
+        border-radius: 10px;
+        padding: 20px;
+        margin: 20px 0;
+        text-align: center;
+        position: relative;
+    }
+
+    #qr-reader {
+        width: 100%;
+        max-width: 500px;
+        margin: 0 auto;
+        border-radius: 10px;
+        overflow: hidden;
+    }
+
+    .controls {
+        display: flex;
+        justify-content: center;
+        gap: 10px;
+        margin: 20px 0;
+        flex-wrap: wrap;
+    }
+
+    .btn {
+        padding: 12px 24px;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        font-size: 16px;
+        text-decoration: none;
+        display: inline-block;
+        transition: background-color 0.3s;
+    }
+
+    .btn-primary {
+        background: #007bff;
+        color: white;
+    }
+
+    .btn-primary:hover {
+        background: #0056b3;
+    }
+
+    .btn-secondary {
+        background: #6c757d;
+        color: white;
+    }
+
+    .btn-secondary:hover {
+        background: #545b62;
+    }
+
+    .btn-success {
+        background: #28a745;
+        color: white;
+    }
+
+    .btn-danger {
+        background: #dc3545;
+        color: white;
+    }
+
+    .result {
+        margin: 20px 0;
+        padding: 20px;
+        border-radius: 8px;
+        text-align: center;
+        font-size: 18px;
+        font-weight: bold;
+        display: none;
+    }
+
+    .result.success {
+        background: #d4edda;
+        color: #155724;
+        border: 1px solid #c3e6cb;
+    }
+
+    .result.warning {
+        background: #fff3cd;
+        color: #856404;
+        border: 1px solid #ffeaa7;
+    }
+
+    .result.error {
+        background: #f8d7da;
+        color: #721c24;
+        border: 1px solid #f5c6cb;
+    }
+
+    .stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 15px;
+        margin: 20px 0;
+    }
+
+    .stat-card {
+        background: #f8f9fa;
+        padding: 15px;
+        border-radius: 8px;
+        text-align: center;
+        border-left: 4px solid #007bff;
+    }
+
+    .stat-number {
+        font-size: 1.5em;
+        font-weight: bold;
+        color: #007bff;
+    }
+
+    .camera-status {
+        padding: 10px;
+        margin: 10px 0;
+        border-radius: 5px;
+        text-align: center;
+    }
+
+    .camera-status.active {
+        background: #d4edda;
+        color: #155724;
+    }
+
+    .camera-status.inactive {
+        background: #f8d7da;
+        color: #721c24;
+    }
+
+    #scan-sound {
+        display: none;
+    }
+
+    @media (max-width: 600px) {
+        .container {
+            padding: 15px;
+            margin: 10px;
+        }
+
+        .controls {
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .btn {
+            width: 200px;
+        }
+    }
+
+    .manual-input {
+        margin: 20px 0;
+        padding: 20px;
+        background: #e9ecef;
+        border-radius: 8px;
+    }
+
+    .manual-input input {
+        width: 70%;
+        padding: 10px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        font-size: 16px;
+    }
+
+    .manual-input button {
+        width: 25%;
+        margin-left: 5%;
+    }
+
+    @media (max-width: 600px) {
+        .manual-input input,
+        .manual-input button {
+            width: 100%;
+            margin: 5px 0;
+        }
+    }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📱 Scanner QR Code</h1>
+            <p>Scannez les QR codes des invités pour valider leur accès</p>
+            <div style="background: #e3f2fd; padding: 10px; border-radius: 5px; margin: 10px 0;">
+                <small>💡 <strong>Conseil mobile :</strong> Maintenez le téléphone stable et assurez-vous d'avoir un bon éclairage</small>
+            </div>
+        </div>
+
+        <div class="stats" id="stats">
+            <div class="stat-card">
+                <div class="stat-number" id="scanned-count">0</div>
+                <div>Scannés aujourd'hui</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="success-count">0</div>
+                <div>Accès autorisés</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="error-count">0</div>
+                <div>Erreurs</div>
+            </div>
+        </div>
+
+        <div class="camera-status inactive" id="camera-status">
+            📷 Caméra inactive
+        </div>
+
+        <div class="scanner-container">
+            <div id="qr-reader"></div>
+        </div>
+
+        <div class="controls">
+            <button id="start-btn" class="btn btn-primary">🎥 Démarrer Scanner</button>
+            <button id="stop-btn" class="btn btn-secondary" style="display: none;">⏹️ Arrêter</button>
+            <a href="/" class="btn btn-secondary">🏠 Accueil</a>
+        </div>
+
+        <div class="manual-input">
+            <h3>Saisie manuelle (en cas de problème)</h3>
+            <input type="text" id="manual-qr" placeholder="Collez le contenu du QR code ici">
+            <button class="btn btn-primary" onclick="verifyManualQR()">Vérifier</button>
+        </div>
+
+        <div id="result" class="result"></div>
+
+        <audio id="scan-sound" preload="auto">
+            <source src="data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSpq2O/FfC8FEV2d6dKcUg8LQ5zg7bZfHgU5id3vuHNBAQbFpOT5w3XwCD6H2+vCfzIHJ3LH9N6OQgYPXrTq47RDEg1hmtnnwHUiBC55wOzGfS8EEVC+7bNhGgRGjdDi2HUiBClt2efIfzMGOX3A6rl8MwRSb8bo7qEKU=" type="audio/wav">
+        </audio>
+    </div>
+
+    <script>
+        // Déclarations de variables globales
+        let html5QrcodeScanner = null;
+        let scanCount = 0;
+        let successCount = 0;
+        let errorCount = 0;
+        let isScanning = false;
+
+        // Sons
+        const scanSound = document.getElementById('scan-sound');
+
+        // Fonctions d'aide (updateStats, playSound, showResult, updateCameraStatus)
+        function updateStats() {
+            document.getElementById('scanned-count').textContent = scanCount;
+            document.getElementById('success-count').textContent = successCount;
+            document.getElementById('error-count').textContent = errorCount;
+        }
+
+        function playSound() {
+            try {
+                scanSound.currentTime = 0;
+                scanSound.play().catch(e => console.log('Son non disponible'));
+            } catch (e) {
+                console.log('Son non disponible');
+            }
+        }
+
+        function showResult(message, type, details = '') {
+            const resultDiv = document.getElementById('result');
+            resultDiv.className = `result ${type}`;
+            resultDiv.innerHTML = `
+                <div>${message}</div>
+                ${details ? `<div style="font-size: 14px; margin-top: 10px; opacity: 0.8;">${details}</div>` : ''}
+            `;
+            resultDiv.style.display = 'block';
+
+            setTimeout(() => {
+                resultDiv.style.display = 'none';
+            }, 5000);
+        }
+
+        function updateCameraStatus(active) {
+            const statusDiv = document.getElementById('camera-status');
+            if (active) {
+                statusDiv.className = 'camera-status active';
+                statusDiv.textContent = '📷 Caméra active - Prêt à scanner';
+            } else {
+                statusDiv.className = 'camera-status inactive';
+                statusDiv.textContent = '📷 Caméra inactive';
+            }
+        }
+
+        // Fonction pour vérifier le QR code via l'API Flask
+        async function verifyQRCode(qrCodeData) {
+            try {
+                const response = await fetch('/verify-qr', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        qr_code: qrCodeData
+                    })
+                });
+
+                const result = await response.json();
+                scanCount++;
+
+                let details = '';
+                if (result.invite && result.etudiant) {
+                    details = `Invité: ${result.invite}<br>Étudiant: ${result.etudiant}`;
+                }
+
+                switch (result.status) {
+                    case 'success':
+                        successCount++;
+                        showResult(result.message, 'success', details);
+                        playSound();
+                        break;
+                    case 'already_used':
+                        errorCount++;
+                        showResult(result.message, 'warning', details);
+                        break;
+                    case 'invalid':
+                        errorCount++;
+                        showResult(result.message, 'error');
+                        break;
+                    default:
+                        errorCount++;
+                        showResult('Erreur inconnue', 'error');
+                }
+                updateStats();
+            } catch (error) {
+                console.error('Erreur de connexion ou de traitement:', error); // Message plus clair
+                scanCount++;
+                errorCount++;
+                showResult('❌ Erreur de connexion ou API', 'error'); // Message plus clair
+                updateStats();
+            }
+        }
+
+        // Callbacks pour html5-qrcode
+        function onScanSuccess(decodedText, decodedResult) {
+            console.log(`QR Code scanné: ${decodedText}`);
+            // Arrêtez le scanner pour éviter les scans multiples rapidement
+            // Vous pouvez le redémarrer après un court délai si vous voulez un scan continu
+            // ou laisser l'utilisateur redémarrer manuellement.
+            // Pour l'instant, on le laisse s'arrêter et l'utilisateur doit re-cliquer.
+            stopScanner(); // Arrêter le scan après succès pour un seul scan à la fois
+            verifyQRCode(decodedText);
+        }
+
+        function onScanFailure(error) {
+            // console.warn(`Échec scan: ${error}`); // Laisser commenté pour éviter le spam console
+        }
+
+        // CONSOLE LOGS POUR DÉBUGGER Html5QrcodeScanType AU CHARGEMENT INITIAL
+        console.log("Type de scan caméra :", typeof Html5QrcodeScanType);
+        // La ligne ci-dessous peut encore causer un crash si Html5QrcodeScanType n'est pas un objet avec SCAN_TYPE_CAMERA
+        // Vérifiez la console attentivement pour les erreurs "TypeError: Cannot read properties of undefined (reading 'SCAN_TYPE_CAMERA')"
+        // Si cela arrive, retirez cette console.log ou entourez-la d'un try-catch
+        console.log("Valeur de Html5QrcodeScanType.SCAN_TYPE_CAMERA :", Html5QrcodeScanType ? Html5QrcodeScanType.SCAN_TYPE_CAMERA : 'Non défini');
+
+
+        // FONCTION startScanner() - UNIQUE ET CORRECTE
+        function startScanner() {
+            console.log("startScanner() appelée.");
+            if (isScanning) {
+                console.log("Scanner déjà en cours, annulation.");
+                return;
+            }
+
+            html5QrcodeScanner = new Html5Qrcode("qr-reader");
+            console.log("Html5Qrcode instance créée pour 'qr-reader'.");
+
+            const config = {
+                fps: 10,
+                qrbox: {
+                    width: 250,
+                    height: 250
+                },
+                aspectRatio: 1.0,
+                disableFlip: false,
+                // Assurez-vous que Html5QrcodeScanType est bien défini ici
+                supportedScanTypes: [Html5QrcodeScanType.SCAN_TYPE_CAMERA]
+            };
+
+            // Utilisation de try-catch pour la détection des caméras
+            try {
+                Html5Qrcode.getCameras().then(cameras => {
+                    console.log("Caméras détectées:", cameras);
+                    if (cameras && cameras.length) {
+                        let cameraId = cameras[0].id;
+                        // Logique pour préférer la caméra arrière (back)
+                        for (let camera of cameras) {
+                            if (camera.label && camera.label.toLowerCase().includes('back')) {
+                                cameraId = camera.id;
+                                break;
+                            }
+                        }
+
+                        html5QrcodeScanner.start(
+                            cameraId,
+                            config,
+                            onScanSuccess,
+                            onScanFailure
+                        ).then(() => {
+                            isScanning = true;
+                            updateCameraStatus(true);
+                            document.getElementById('start-btn').style.display = 'none';
+                            document.getElementById('stop-btn').style.display = 'inline-block';
+                            console.log('Scanner démarré avec succès.');
+                        }).catch(err => {
+                            console.error('Erreur démarrage scanner (html5QrcodeScanner.start):', err);
+                            showResult('❌ Impossible de démarrer la caméra', 'error');
+                        });
+                    } else {
+                        console.warn('Aucune caméra trouvée via Html5Qrcode.getCameras().');
+                        showResult('❌ Aucune caméra détectée', 'error');
+                    }
+                }).catch(err => {
+                    console.error('Erreur accès caméras (Html5Qrcode.getCameras):', err);
+                    showResult('❌ Erreur d\'accès aux caméras', 'error');
+                });
+            } catch (e) {
+                console.error("Erreur inattendue dans startScanner (try-catch global):", e);
+                showResult('❌ Erreur inattendue au démarrage', 'error');
+            }
+        }
+
+        // FONCTION stopScanner() - UNIQUE ET CORRECTE
+        function stopScanner() {
+            console.log("stopScanner() appelée.");
+            if (html5QrcodeScanner && isScanning) {
+                html5QrcodeScanner.stop().then(() => {
+                    isScanning = false;
+                    updateCameraStatus(false);
+                    document.getElementById('start-btn').style.display = 'inline-block';
+                    document.getElementById('stop-btn').style.display = 'none';
+                    console.log('Scanner arrêté.');
+                }).catch(err => {
+                    console.error('Erreur arrêt scanner:', err);
+                });
+            }
+        }
+
+        // FONCTION verifyManualQR() - UNIQUE ET CORRECTE
+        function verifyManualQR() {
+            const manualInput = document.getElementById('manual-qr');
+            const qrCode = manualInput.value.trim();
+
+            if (!qrCode) {
+                showResult('❌ Veuillez saisir un code QR', 'error');
+                return;
+            }
+            console.log(`Vérification manuelle du QR Code: ${qrCode}`);
+            verifyQRCode(qrCode);
+            manualInput.value = '';
+        }
+
+        // Gestionnaires d'événements - Assurez-vous qu'ils sont à la fin, après toutes les fonctions
+        document.getElementById('start-btn').addEventListener('click', startScanner);
+        document.getElementById('stop-btn').addEventListener('click', stopScanner);
+
+        // Raccourci clavier pour la saisie manuelle
+        document.getElementById('manual-qr').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                verifyManualQR();
+            }
+        });
+
+        // Nettoyage à la fermeture de la page
+        window.addEventListener('beforeunload', function() {
+            if (isScanning) {
+                stopScanner();
+            }
+        });
+
+        // Initialisation des statistiques au chargement de la page
+        document.addEventListener('DOMContentLoaded', updateStats); // S'assurer que les stats sont à jour au chargement
+    </script>
+</body>
+</html>
